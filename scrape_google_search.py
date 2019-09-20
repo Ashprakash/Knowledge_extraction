@@ -1,18 +1,35 @@
 
-from urlparse import urlparse
+from urllib.parse import urlparse
 from lxml.html import fromstring
 import lxml
 from requests import get
 from bs4 import BeautifulSoup
-import urllib2
 import json
-import pickle
 
 def scrape_google(search_query,s_q_id):
     google_url = "https://google.com/search?q="+search_query
     raw = get(google_url).text
-    soup = BeautifulSoup(raw,"lxml")
+    soup = BeautifulSoup(raw, "lxml")
     x = soup.body.find_all('div', attrs={'class' : 'g'})
+    
+    # kill all script and style elements
+    for script in soup(["script", "style", "meta", "input", "title"]):
+        script.extract()    # rip it out  
+
+    # get text
+    #text = soup.get_text();
+    spans = soup.body.find_all('div')
+    
+    print(soup)
+    for each in spans:
+        print(each)
+    print(text)
+    # break into lines and remove leading and trailing space on each
+    #lines = (line.strip() for line in text.splitlines()
+    # break multi-headlines into a line each
+    #chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+    # drop blank lines
+    #text = '\n'.join(chunk for chunk in chunks if chunk)
     
     result = []    
 
@@ -24,7 +41,7 @@ def scrape_google(search_query,s_q_id):
         txt = item.find('span', attrs={'class' : 'st'})
         if ul is not None:
             #print "R"
-            url_ = ul.find('a')
+            url_ = ul.find('a') 
             if url_ is not None:
                 url_ = url_.attrs['href']
             if url_ is not None:
@@ -43,8 +60,35 @@ def scrape_google(search_query,s_q_id):
             url_text["url"] = url_
             url_text["text"] = txst
             result.append(url_text)
+
     return result            
 
+
+def scrape_google_update(search_query, s_q_id):
+    google_url = "https://google.com/search?q="+search_query
+    raw = get(google_url).text
+    soup = BeautifulSoup(raw, "lxml")
+    
+    # kill all script and style elements
+    for script in soup(["script", "style", "meta", "input", "title"]):
+       script.extract()    # rip it out  
+
+    # get text
+    text = soup.get_text();
+    raw_text = text.split(' ...')
+    scrapped = []
+    for j in range(0, len(raw_text)):
+        if(j == 0):
+            continue
+        if(j == len(raw_text)-1):
+            c = raw_text[j].split('Related')
+            scrapped.append(c[0])
+            continue
+        scrapped.append(raw_text[j])
+        print("********************")
+        print(raw_text[j])
+        print("********************")
+    return scrapped     
 
 def search_and_save(queries_file):
     f_json = open(queries_file,'r')
@@ -64,10 +108,10 @@ def search_and_save(queries_file):
     i=1
     result = {}
     for query in set_of_queries:
-        print i
+        print(i)
         scrape_result = scrape_google(query,i)
         result[query] = scrape_result
-        i+=1
+        i = i + 1
 
     return result
 
@@ -100,16 +144,17 @@ def search_copa_sents(queries_file):
     return result
 
 if __name__=="__main__":
+    problems = "../data_sets/winogrande/knowledge_queries.json"
+    f = open(problems,"r")
+    all_probs = f.read()
+    grande_problems = json.loads(all_probs)
     
-    search_query = "\" * eat * because * tasty * \""
-    search_result = scrape_google(search_query,0)
-    print "********************"
-    print "********************"
-
+    for i in range(50, len(grande_problems)):
+        prob = grande_problems[i][0]
+        query = prob['queries'][0]
+        search_result = scrape_google_update(query, 0)
+        prob["knowledge"] = search_result
+        with open('../data_sets/winogrande/knowledge_queries.json', 'w') as outfile:
+            json.dump(grande_problems, outfile)
     
-
-
-
-
-
  
